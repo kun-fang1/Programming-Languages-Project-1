@@ -1,6 +1,6 @@
 # Group Identification
 
- - FirstName LastName, IST number, Email
+ - Kun Fang, 105623, kun.fang@tecnico.ulisboa.pt
  - FirstName LastName, IST number, Email
  - FirstName LastName, IST number, Email
 
