@@ -1,7 +1,7 @@
 # Group Identification
 
  - Kun Fang, 105623, kun.fang@tecnico.ulisboa.pt
- - FirstName LastName, IST number, Email
+ - Nicolás Castro, 1105833, nicolas.castro@tecnico.ulisboa.pt
  - FirstName LastName, IST number, Email
 
 # Implemented Features
