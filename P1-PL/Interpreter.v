@@ -149,7 +149,23 @@ Theorem p1_equals_p2: forall st cont,
   (exists i0,
     (forall i1, i1 >= i0 -> ceval_step st p1 cont i1 =  ceval_step st p2 cont i1)).
 Proof.
-  (* TODO *)
+  intros st.
+  exists 12.
+  intros i.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  destruct i; try lia.
+  simpl.
+  reflexivity.
 Qed.
 
 
