@@ -168,11 +168,14 @@ Proof. reflexivity. Qed.
   1.1. TODO: Extend the datatype with the two new constructs as specified.
 *)
 Inductive com : Type :=
+  | CBreak
   | CSkip
   | CAsgn (x : string) (a : aexp)
   | CSeq (c1 c2 : com)
   | CIf (b : bexp) (c1 c2 : com)
   | CWhile (b : bexp) (c : com).
+  | NDChoice (c1 c2 : com) (* New construct for non-deterministic choice *)
+  | Guard (b : bexp) (c : com). (* New construct for conditional guard *)         
 
 (** As for expressions, we can use a few [Notation] declarations to
     make reading and writing Imp programs more convenient. *)
@@ -181,6 +184,8 @@ Inductive com : Type :=
 (**
   1.2. TODO: Define notations for the new constructs as required
 *)
+Notation "'break'" := CBreak (in custom com at level 0).
+
 Notation "'skip'"  :=
          CSkip (in custom com at level 0) : com_scope.
 Notation "x := y"  :=
@@ -197,6 +202,12 @@ Notation "'if' x 'then' y 'else' z 'end'" :=
 Notation "'while' x 'do' y 'end'" :=
          (CWhile x y)
             (in custom com at level 89, x at level 99, y at level 99) : com_scope.
+Notation "c1 '!!' c2" :=
+         (NDChoice c1 c2)
+            (in custom com at level 90, right associativity).
+Notation "b '->' c" :=
+          (Guard b c)
+            (in custom com at level 80, right associativity).
 
 (**
   1.3. TODO: Define p1 and p2 as, respectively, the programs:
@@ -206,5 +217,8 @@ Notation "'while' x 'do' y 'end'" :=
                 X:=2
 
 *)
-Example p1 := (* TODO *).
-Example p2 := (* TODO *).
+Definition p1 : com :=
+  (X := 1 ;; skip) !! (X := 2); (X = 2 -> skip).
+
+Definition p2 : com :=
+  X := 2.
