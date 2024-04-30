@@ -28,12 +28,47 @@ Notation "'LETOPT' x <== e1 'IN' e2"
              you are strongly encouraged to define auxiliary notation.
              See the notation LETOPT in the ImpCEval chapter.
 *)
+Notation "'LETOPT' x <== e1 'IN' e2"
+  := (match e1 with
+          | Some x => e2
+          | None => None
+       end)
+(right associativity, at level 60).
 
 Fixpoint ceval_step (st : state) (c : com) (continuation: list (state * com)) (i : nat)
                     : interpreter_result :=
   match i with
-  | (* TODO *)
-  | (* TODO *)
+  | 0 => OutOfGas
+  | S i' =>
+    match c with
+    | CSkip => Success (st, continuation)
+    | CAsgn x a =>
+        Success (st & { x --> aeval st a }, continuation)
+    | CSeq c1 c2 =>
+        match ceval_step st c1 (c2 :: continuation) i' with
+        | Success (st', cont') => ceval_step st' c2 cont' i'
+        | result => result
+        end
+    | CIf b c1 c2 =>
+        if (beval st b) then ceval_step st c1 continuation i' else ceval_step st c2 continuation i'
+    | CWhile b c1 =>
+        if (beval st b) then
+          ceval_step st (c1 ;; CWhile b c1) continuation i'
+        else
+          Success (st, continuation)
+    | NDChoice c1 c2 =>
+        match ceval_step st c1 continuation i' with
+        | Success (st', cont') => Success (st', cont')
+        | Fail => ceval_step st c2 continuation i'
+        | result => result
+        end
+    | Guard b c' =>
+        if (beval st b) then ceval_step st c' continuation i' else
+          match continuation with
+          | nil => Fail (* No more continuations to explore *)
+          | (st', c') :: cont' => ceval_step st' c' cont' i' (* backtrack *)
+          end
+    end
   end.
 
 
