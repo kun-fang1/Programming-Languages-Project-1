@@ -34,6 +34,30 @@ Inductive ceval : com -> state -> list (state * com) ->
           result -> state -> list (state * com) -> Prop :=
 | E_Skip : forall st q,
  st / q =[ skip ]=> st / q / Success
+| E_Assign : forall st q x a,
+    st / q =[ x := a ]=> (st & {x --> aeval st a}) / q / Success
+| E_Seq_Skip : forall st q c,
+    st / q =[ c ;; skip ]=> st / q / Success
+| E_Seq : forall st1 q1 st2 q2 q3 c1 c2,
+    st1 / q1 =[ c1 ]=> st2 / q2 / Success ->
+    st2 / q2 =[ c2 ]=> st2 / q3 / Success ->
+    st1 / q1 =[ c1 ;; c2 ]=> st2 / q3 / Success
+| E_IfTrue : forall st1 q1 b c1 c2,
+    beval st1 b = true ->
+    st1 / q1 =[ c1 ]=> st1 / q1 / Success ->
+    st1 / q1 =[ if b then c1 else c2 end ]=> st1 / q1 / Success
+| E_IfFalse : forall st1 q1 b c1 c2,
+    beval st1 b = false ->
+    st1 / q1 =[ c2 ]=> st1 / q1 / Success ->
+    st1 / q1 =[ if b then c1 else c2 end ]=> st1 / q1 / Success
+| E_WhileEnd : forall st1 q1 b c,
+    beval st1 b = false ->
+    st1 / q1 =[ while b do c end ]=> st1 / q1 / Success
+| E_WhileLoop : forall st1 q1 q2 q3 b c,
+    beval st1 b = true ->
+    st1 / q1 =[ c ]=> st1 / q2 / Success ->
+    st1 / q2 =[ while b do c end ]=> st1 / q3 / Success ->
+    st1 / q1 =[ while b do c end ]=> st1 / q3 / Success
 (* TODO. Hint: follow the same structure as shown in the chapter Imp *)
 where "st1 '/' q1 '=[' c ']=>' st2 '/' q2 '/' r" := (ceval c st1 q1 r st2 q2).
 
