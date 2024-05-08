@@ -77,7 +77,9 @@ if (X <= 1)
 end
 ]=> (Z !-> 4 ; X !-> 2) / [] / Success.
 Proof.
-  (* TODO *)
+  apply E_Seq; auto.
+  - apply E_Assign; auto.
+  - apply E_IfFalse; auto.
 Qed.
 
 
@@ -87,7 +89,7 @@ empty_st / [] =[
    (X = 1) -> X:=3
 ]=> (empty_st) / [] / Fail.
 Proof.
-  (* TODO *)
+  apply E_Assign; auto.
 Qed. 
 
 Example ceval_example_guard2:
@@ -96,7 +98,7 @@ empty_st / [] =[
    (X = 2) -> X:=3
 ]=> (X !-> 3 ; X !-> 2) / [] / Success.
 Proof.
-  (* TODO *)
+  apply E_Assign; auto.
 Qed. 
 
 Example ceval_example_guard3: exists q,
@@ -105,7 +107,14 @@ empty_st / [] =[
    (X = 2) -> X:=3
 ]=> (X !-> 3) / q / Success.
 Proof.
-  (* TODO *)
+  exists.
+  apply E_Seq; auto.
+  - apply E_Seq; eauto.
+    + apply E_Assign; auto.
+    + apply E_IfTrue; auto.
+      * simpl. reflexivity.
+      * apply E_Assign; auto.
+  - apply E_GuardTrue; auto.
 Qed.
     
 Example ceval_example_guard4: exists q,
@@ -114,7 +123,14 @@ empty_st / [] =[
    (X = 2) -> X:=3
 ]=> (X !-> 3) / q / Success.
 Proof.
-  (* TODO *)
+  exists.
+  apply E_Seq; auto.
+  - apply E_Seq; auto.
+    + apply E_Assign; auto.
+    + apply E_IfFalse; auto.
+      * simpl. reflexivity.
+      * apply E_Assign; auto.
+  - apply E_GuardTrue; auto.
 Qed.
 
 
