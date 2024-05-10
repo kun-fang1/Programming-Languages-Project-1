@@ -29,6 +29,7 @@ Reserved Notation "st1 '/' q1 '=[' c ']=>' st2 '/' q2 '/' r"
 (* 
 3. TODO: Define the relational semantics (ceval) to support the required constructs.
 *)
+(*Inductive ceval : state -> list (state * com) -> com -> state -> list (state * com) -> result -> Prop :=*)
 
 Inductive ceval : com -> state -> list (state * com) -> 
           result -> state -> list (state * com) -> Prop :=
@@ -60,7 +61,7 @@ Inductive ceval : com -> state -> list (state * com) ->
     st1 / q1 =[ while b do c end ]=> st1 / q3 / Success
 (* TODO. Hint: follow the same structure as shown in the chapter Imp *)
 where "st1 '/' q1 '=[' c ']=>' st2 '/' q2 '/' r" := (ceval c st1 q1 r st2 q2).
-
+(*Esta notação permite-nos escrever expressões como st1 / q1 =[ c ]=> st2 / q2 / r, o que torna mais fácil entender e manipular as relações de avaliação do programa*)
 
 (**
   3.1. TODO: Use the new relational semantics to prove the examples
@@ -153,49 +154,133 @@ Infix "==" := cequiv (at level 99).
   3.2. TODO: Prove the properties below.
 *)
 
+(*programa composto X := 2; X = 2 -> skip é comportamentalmente equivalente ao programa simples X := 2.*)
 Lemma cequiv_ex1:
 <{ X := 2; X = 2 -> skip }> == 
 <{ X := 2 }>.
 Proof.
   (* TODO *)
+  unfold cequiv. split.
+  - (* Esquerda para Direita -> *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst. inversion H5; subst. exists q1. apply E_Seq with (st2 := st'0); auto.
+  - (* Direita para Esquerda <- *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst. inversion H1; subst. exists q1. apply E_Seq with (st2 := st'0); auto.
 Qed.
 
+(*Precisamos mostrar que a escolha não determinística entre X := 1 e X := 2*)
 Lemma cequiv_ex2:
 <{ (X := 1 !! X := 2); X = 2 -> skip }> == 
 <{ X := 2 }>.
 Proof.
   (* TODO *)
+  unfold cequiv. split.
+  - (* -> *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    (*X := 1 é escolhido, então X será 1 e a guarda falhará, levando a skip.*)
+    + inversion H1; subst. 
+      * (* E_Assign *) exists q1. apply E_Seq with (st2 := st & {X --> aeval st (ANum 1)}); auto.
+      * (* E_GuardFalse *) simpl in H5. inversion H5.
+    (*X := 2 é escolhido, então X será 2 e a guarda será bem-sucedida, também levando a skip*)
+    + inversion H1; subst.
+      * (* E_Assign *) exists q1. apply E_Seq with (st2 := st & {X --> aeval st (ANum 2)}); auto.
+      * (* E_GuardTrue *) simpl in H5. inversion H5.
+  - (* <- *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    inversion H1; subst.
+    exists q1. apply E_Seq with (st2 := st & {X --> aeval st (ANum 2)}); auto.
 Qed.
 
-
+(*Afirma que a escolha não determinística entre c e c é equivalente a simplesmente c*)
 Lemma choice_idempotent: forall c,
-<{ c !! c }> == <{ c }>.
+<{ c !! c }> == <{ c }>. (*Prova é Direta*)
 Proof.
   (* TODO *)
+  unfold cequiv. split.
+  - (* -> *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    + (* Choice 1 c *) exists q1. auto.
+    + (* Choice 2 c *) exists q1. auto.
+  - (* <- *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    exists q1. apply E_NDChoice1; auto.
 Qed.
 
+(*Propriedade afirma que a ordem da escolha não determinística não importa.*)
 Lemma choice_comm: forall c1 c2,
-<{ c1 !! c2 }> == <{ c2 !! c1 }>.
+<{ c1 !! c2 }> == <{ c2 !! c1 }>. (*Prova direta, c1 c2 é a mesma que c2 c1*)
 Proof.
   (* TODO *)
+  unfold cequiv. split.
+  - (* -> *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    + (* Choice 1: c1 *) exists q1. apply E_NDChoice2; auto.
+    + (* Choice 2: c2 *) exists q1. apply E_NDChoice1; auto.
+  - (* <- *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    + (* Choice 1: c2 *) exists q1. apply E_NDChoice2; auto.
+    + (* Choice 2: c1 *) exists q1. apply E_NDChoice1; auto.
 Qed.
 
+(*Propriedade afirma que a associação de escolhas não determinísticas é irrelevante.*)
 Lemma choice_assoc: forall c1 c2 c3,
 <{ (c1 !! c2) !! c3 }> == <{ c1 !! (c2 !! c3) }>.
 Proof.
   (* TODO *)
+  unfold cequiv. split.
+  - (* -> *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    + (* Choice 1: c1 *) inversion H3; subst.
+      * (* Choice 1.1: c1 *) exists q1. apply E_NDChoice1; auto.
+      * (* Choice 1.2: c2 *) exists q1. apply E_NDChoice2; auto.
+    + (* Choice 2: c3 *) exists q1. apply E_NDChoice2; auto.
+  - (* <- *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    + (* Choice 1: c1 *) exists q1. apply E_NDChoice1; auto.
+    + (* Choice 2: c2 !! c3 *) inversion H3; subst.
+      * (* Choice 2.1: c2 *) exists q1. apply E_NDChoice1; auto.
+      * (* Choice 2.2: c3 *) exists q1. apply E_NDChoice2; auto.
 Qed.
 
-
+(*Propriedade afirma que a composição sequencial se distribui sobre a escolha não determinística à esquerda. *)
 Lemma choice_seq_distr_l: forall c1 c2 c3,
 <{ c1 ; (c2 !! c3)}> == <{ (c1;c2) !! (c1;c3) }>.
+(*c1 ; (c2 !! c3) é equivalente a (c1 ; c2) !! (c1 ; c3).*)
 Proof.
   (* TODO *)
+  unfold cequiv. split.
+  - (* -> *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    + (* Sequence 1 *) inversion H5; subst.
+      * (* c2 *) exists (q1 ++ [(st'0, c3)]). apply E_NDChoice2; auto.
+      * (* c3 *) exists (q1 ++ [(st'0, c4)]). apply E_NDChoice2; auto.
+    + (* Sequence 2 *) inversion H5; subst.
+      exists q1. apply E_NDChoice1; auto.
+  - (* <- *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    + (* Choice 1: c1;c2 *) inversion H3; subst.
+      * (* Sequence 1 *) exists q1. apply E_Seq with (st2 := st'0); auto.
+      * (* Sequence 2 *) exists q1. apply E_Seq with (st2 := st'0); auto.
+    + (* Choice 2: c1;c3 *) inversion H3; subst.
+      exists q1. apply E_Seq with (st2 := st'0); auto.
 Qed.
 
+(*Propriedade afirma que a escolha não determinística preserva a equivalência comportamental entre os programas escolhidos. *)
 Lemma choice_congruence: forall c1 c1' c2 c2',
 c1 == c1' -> c2 == c2' ->
 <{ c1 !! c2 }> == <{ c1' !! c2' }>.
 Proof.
   (* TODO *)
+  unfold cequiv. split.
+  - (* -> *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    + (* Choice 1: c1 *) destruct (H0 _ _ _ _ _ H2) as [q3 H3].
+      exists q3. apply E_NDChoice1; auto.
+    + (* Choice 2: c2 *) destruct (H1 _ _ _ _ _ H2) as [q3 H3].
+      exists q3. apply E_NDChoice2; auto.
+  - (* <- *) unfold cequiv_imp. intros st1 st2 q1 q2 result H.
+    inversion H; subst.
+    + (* Choice 1: c1' *) destruct (H0 _ _ _ _ _ H2) as [q3 H3].
+      exists q3. apply E_NDChoice1; auto.
+    + (* Choice 2: c2' *) destruct (H1 _ _ _ _ _ H2) as [q3 H3].
+      exists q3. apply E_NDChoice2; auto.
 Qed.
