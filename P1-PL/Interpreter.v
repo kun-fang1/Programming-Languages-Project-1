@@ -70,43 +70,7 @@ Fixpoint ceval_step (st : state) (c : com) (continuation: list (state * com)) (i
     end
   end.
 
-(*
-Fixpoint ceval_step (st : state) (c : com) (continuation: list (state * com)) (i : nat)
-                    : interpreter_result :=
-  match i with
-  | 0 => OutOfGas
-  | S i' =>
-    match c with
-    | CSkip => Success (st, continuation)
-    | CAsgn x a =>
-        Success ((x !-> a ; st), continuation)
-    | CSeq c1 c2 =>
-        match ceval_step st c1 (c2 :: continuation) i' with
-        | Success (st', cont') => ceval_step st' c2 cont' i'
-        | result => result
-        end
-    | CIf b c1 c2 =>
-        if (beval st b) then ceval_step st c1 continuation i' else ceval_step st c2 continuation i'
-    | CWhile b c1 =>
-        if (beval st b) then
-          ceval_step st (c1 ;; CWhile b c1) continuation i'
-        else
-          Success (st, continuation)
-    | NDChoice c1 c2 =>
-        match ceval_step st c1 continuation i' with
-        | Success (st', cont') => Success (st', cont')
-        | Fail => ceval_step st c2 continuation i'
-        | result => result
-        end
-    | Guard b c' =>
-        if (beval st b) then ceval_step st c' continuation i' else
-          match continuation with
-          | nil => Fail (* No more continuations to explore *)
-          | (st', c') :: cont' => ceval_step st' c' cont' i' (* backtrack *)
-          end
-    end
-  end.
-*)
+
 
 
 (* Helper functions that help with running the interpreter *)
@@ -214,5 +178,31 @@ Theorem ceval_step_more: forall i1 i2 st st' c cont cont',
   ceval_step st c cont i1 = Success (st', cont') ->
   ceval_step st c cont i2 = Success (st', cont').
 Proof.
-  (* TODO *)
+    intros i1 i2 st st' c cont cont' Hle Hstep.
+  generalize dependent i2. (Generaliza i2 para usar Hipotese i1<=i2)
+  induction i1 as [| i1' IH]. (Indução em i1)
+  
+    (Caso Base i1=0)
+    intros i2 Hle Hstep. (Introduz i2 e Hipoteses)
+    destruct i2; try lia. (Verifica se i2, 0 ou maior)
+    simpl in Hstep. inversion Hstep. (Simplifica avaliação e prova a contradição)
+  
+(
+Caso Indutivo i1=S i1')
+    intros i2 Hle Hstep. (Introduz i2 e Hipoteses)
+    destruct i2 as [| i2']. ( Caso i2 = 0 )
+    + (Subcaso i2 = 0)
+      simpl. reflexivity. (i1 > i2, a prova é direta)
+    + (Subcaso i2 = S i2')
+      simpl. 
+      destruct (ceval_step st c cont i1') eqn:Heq1. (Verifica o resultado de ceval_step com i1'*)
+      
+(Caso Success)
+      inversion Hstep; subst. (Inverte Hstep e Subsitui Variaveis)
+      apply IH in Heq1; try lia. (Aplica IH e prova que i1'<=i2')
+      rewrite Heq1. reflexivity. (Prova que o resultado i2' é bem sucedido)
+(Caso Fail ou OutOfGas)
+    inversion Hstep; subst; try reflexivity. (Inverte Hstep e prova a contradição)
+    apply IH in Heq1; try lia. (Aplica IH e prova que i1'<=i2')
+    rewrite He1. reflexivity. (Prova que o resultado i2' é bem sucedido)
 Qed.
