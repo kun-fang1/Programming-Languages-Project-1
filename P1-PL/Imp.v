@@ -218,7 +218,7 @@ Notation "b '->' c" :=
 
 *)
 Definition p1 : com :=
-  (X := 1 ;; skip) !! (X := 2); (X = 2 -> skip).
+  <{(X := 1 !! X := 2); X = 2 -> skip}>.
 
 Definition p2 : com :=
-  X := 2.
+  <{X := 2}>.
