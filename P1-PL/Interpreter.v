@@ -179,30 +179,29 @@ Theorem ceval_step_more: forall i1 i2 st st' c cont cont',
   ceval_step st c cont i2 = Success (st', cont').
 Proof.
     intros i1 i2 st st' c cont cont' Hle Hstep.
-  generalize dependent i2. (Generaliza i2 para usar Hipotese i1<=i2)
-  induction i1 as [| i1' IH]. (Indução em i1)
+    generalize dependent i2. (*Generaliza i2 para usar Hipotese i1<=i2*)
+    induction i1 as [| i1' IH]. (*Indução em i1*)
   
-    (Caso Base i1=0)
-    intros i2 Hle Hstep. (Introduz i2 e Hipoteses)
-    destruct i2; try lia. (Verifica se i2, 0 ou maior)
-    simpl in Hstep. inversion Hstep. (Simplifica avaliação e prova a contradição)
+    (*Caso Base i1=0*)
+    intros i2 Hle Hstep. (*Introduz i2 e Hipoteses*)
+    destruct i2; try lia. (*Verifica se i2, 0 ou maior*)
+    simpl in Hstep. inversion Hstep. (*Simplifica avaliação e prova a contradição*)
   
-(
-Caso Indutivo i1=S i1')
-    intros i2 Hle Hstep. (Introduz i2 e Hipoteses)
-    destruct i2 as [| i2']. ( Caso i2 = 0 )
-    + (Subcaso i2 = 0)
-      simpl. reflexivity. (i1 > i2, a prova é direta)
-    + (Subcaso i2 = S i2')
+    (*Caso Indutivo i1=S i1'*)
+    intros i2 Hle Hstep. (*Introduz i2 e Hipoteses*)
+    destruct i2 as [| i2']. (*Caso i2 = 0*)
+    + (*Subcaso i2 = 0*)
+    simpl. reflexivity. (*i1 > i2, a prova é direta*)
+    + (*Subcaso i2 = S i2'*)
       simpl. 
-      destruct (ceval_step st c cont i1') eqn:Heq1. (Verifica o resultado de ceval_step com i1'*)
+    destruct (ceval_step st c cont i1') eqn:Heq1. (*Verifica o resultado de ceval_step com i1'*)
       
-(Caso Success)
-      inversion Hstep; subst. (Inverte Hstep e Subsitui Variaveis)
-      apply IH in Heq1; try lia. (Aplica IH e prova que i1'<=i2')
-      rewrite Heq1. reflexivity. (Prova que o resultado i2' é bem sucedido)
-(Caso Fail ou OutOfGas)
-    inversion Hstep; subst; try reflexivity. (Inverte Hstep e prova a contradição)
-    apply IH in Heq1; try lia. (Aplica IH e prova que i1'<=i2')
-    rewrite He1. reflexivity. (Prova que o resultado i2' é bem sucedido)
+    (*Caso Success*)
+    inversion Hstep; subst. (*Inverte Hstep e Subsitui Variaveis*)
+    apply IH in Heq1; try lia. (*Aplica IH e prova que i1'<=i2'*)
+    rewrite Heq1. reflexivity. (*Prova que o resultado i2' é bem sucedido*)
+    (*Caso Fail ou OutOfGas*)
+    inversion Hstep; subst; try reflexivity. (*Inverte Hstep e prova a contradição*)
+    apply IH in Heq1; try lia. (*Aplica IH e prova que i1'<=i2'*)
+    rewrite He1. reflexivity. (*Prova que o resultado i2' é bem sucedido*)
 Qed.
