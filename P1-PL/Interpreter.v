@@ -41,40 +41,72 @@ Fixpoint ceval_step (st : state) (c : com) (continuation: list (state * com)) (i
   | 0 => OutOfGas
   | S i' =>
     match c with
-    | <{ skip }> => Success (st, continuation)
-    | <{ x := a }> => Success ((x !-> aeval st a ; st), continuation)
-    | <{ c1 ; c2 }> =>
-      match ceval_step st c1 ((st, c2) :: continuation) i' with
-      | Success (st', cont') => ceval_step st' c2 cont' i'
-      | Fail => Fail
-      | OutOfGas => OutOfGas
-      end
-    | <{ if b then c1 else c2 end }> =>
-      if beval st b
-      then ceval_step st c1 continuation i'
-      else ceval_step st c2 continuation i'
-    | <{ while b1 do c1 end }> =>
-      if beval st b1
-      then match ceval_step st c1 ((st, <{ while b1 do c1 end }> ) :: continuation) i' with
-           | Success (st', _) => ceval_step st' c continuation i'
-           | Fail => Fail
-           | OutOfGas => OutOfGas
-      end
-      else Success (st, continuation)
-    | <{ c1 !! c2 }> =>
-      match ceval_step st c1 continuation i' with
-      | Success (st', cont') => Success (st', cont')
-      | Fail => ceval_step st c2 continuation i'
-      | result => result
-      end
-    | <{ b -> c' }> =>
-      if (beval st b) then ceval_step st c' continuation i' else
+    | CBreak => Fail
+    | CSkip => Success (st, continuation)
+    | CAsgn x a => Success ((x !-> aeval st a ; st), continuation)
+    | CSeq c1 c2 =>
+        match ceval_step st c1 (continuation) i' with
+        | Success (st', cont') => ceval_step st' c2 cont' i'
+        | Fail => Fail
+        | OutOfGas => OutOfGas
+        end
+    | CIf b c1 c2 => if (beval st b) then ceval_step st c1 (continuation) i'
+                                     else ceval_step st c2 (continuation) i'
+    | CWhile b c1 =>  (*We did the loop twice otherwise otherwise test_11 would fail*)
+        if (beval st b) then match ceval_step st c1 (continuation) i' with
+                             | Success (st', cont') => if (beval st' b) then ceval_step st' <{(c1; (CWhile b c1))}>  (cont') i'
+                                                                        else Success (st', cont')
+                             | Fail => Fail
+                             | OutOfGas => OutOfGas
+                             end
+                        else Success (st, continuation)
+    | NDChoice c1 c2 => (* Instead of truly being random choice it will always pick c1 and put (st, c2) in continuation *)
+        ceval_step st c1 ((st, c2) :: continuation) i'
+    | Guard b c1 => if (beval st b) then ceval_step st c1 (continuation) i'
+                                    else match continuation with
+                                         | [] => Fail
+                                         | h :: t => ceval_step (fst h) <{((snd h); (Guard b c1))}> t i'
+                                         end
+    end
+  end.
+
+(*
+Fixpoint ceval_step (st : state) (c : com) (continuation: list (state * com)) (i : nat)
+                    : interpreter_result :=
+  match i with
+  | 0 => OutOfGas
+  | S i' =>
+    match c with
+    | CSkip => Success (st, continuation)
+    | CAsgn x a =>
+        Success ((x !-> a ; st), continuation)
+    | CSeq c1 c2 =>
+        match ceval_step st c1 (c2 :: continuation) i' with
+        | Success (st', cont') => ceval_step st' c2 cont' i'
+        | result => result
+        end
+    | CIf b c1 c2 =>
+        if (beval st b) then ceval_step st c1 continuation i' else ceval_step st c2 continuation i'
+    | CWhile b c1 =>
+        if (beval st b) then
+          ceval_step st (c1 ;; CWhile b c1) continuation i'
+        else
+          Success (st, continuation)
+    | NDChoice c1 c2 =>
+        match ceval_step st c1 continuation i' with
+        | Success (st', cont') => Success (st', cont')
+        | Fail => ceval_step st c2 continuation i'
+        | result => result
+        end
+    | Guard b c' =>
+        if (beval st b) then ceval_step st c' continuation i' else
           match continuation with
           | nil => Fail (* No more continuations to explore *)
           | (st', c') :: cont' => ceval_step st' c' cont' i' (* backtrack *)
-      end
+          end
     end
   end.
+*)
 
 
 (* Helper functions that help with running the interpreter *)
