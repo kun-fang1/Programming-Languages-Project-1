@@ -59,23 +59,22 @@ Fixpoint ceval_step (st : state) (c : com) (continuation: list (state * com)) (i
            | Success (st', _) => ceval_step st' c continuation i'
            | Fail => Fail
            | OutOfGas => OutOfGas
-           end
+      end
       else Success (st, continuation)
     | <{ c1 !! c2 }> =>
-        match ceval_step st c1 continuation i' with
-        | Success (st', cont') => Success (st', cont')
-        | Fail => ceval_step st c2 continuation i'
-        | result => result
-        end
-    | Guard b c' =>
-        if (beval st b) then ceval_step st c' continuation i' else
+      match ceval_step st c1 continuation i' with
+      | Success (st', cont') => Success (st', cont')
+      | Fail => ceval_step st c2 continuation i'
+      | result => result
+      end
+    | <{ b -> c' }> =>
+      if (beval st b) then ceval_step st c' continuation i' else
           match continuation with
           | nil => Fail (* No more continuations to explore *)
           | (st', c') :: cont' => ceval_step st' c' cont' i' (* backtrack *)
-          end
+      end
     end
   end.
-
 
 
 (* Helper functions that help with running the interpreter *)
