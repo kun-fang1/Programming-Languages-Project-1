@@ -163,7 +163,21 @@ Inductive ceval : com -> state -> result -> Prop :=
       beval st b = true ->
       st =[ c ]=> RError ->
       st =[ while b do c end ]=> RError
-  (* TODO *)
+  | E_AssertTrue : forall st b,
+      beval st b = true ->
+      st =[ assert b ]=> RNormal st
+  | E_AssertFalse : forall st b,
+      beval st b = false ->
+      st =[ assert b ]=> RError
+  | E_Assume : forall st b,
+      beval st b = true ->
+      st =[ assume b ]=> RNormal st
+  | E_NonDetChoice1 : forall st c1 c2 r,
+      st =[ c1 ]=> r ->
+      st =[ c1 !! c2 ]=> r
+  | E_NonDetChoice2 : forall st c1 c2 r,
+      st =[ c2 ]=> r ->
+      st =[ c1 !! c2 ]=> r
 
 where "st '=[' c ']=>' r" := (ceval c st r).
 
@@ -199,14 +213,22 @@ Theorem assume_false: forall P Q b,
        (forall st, beval st b = false) ->
        ({{P}} assume b {{Q}}).
 Proof.
-  (* TODO *)
+  intros P Q b Hb st st' H HP.
+  inversion H; subst.
+  rewrite Hb in H1.
+  inversion H1.
 Qed.
 
 Theorem assert_implies_assume : forall P b Q,
      ({{P}} assert b {{Q}})
   -> ({{P}} assume b {{Q}}).
 Proof.
-  (* TODO *)
+  intros P b Q H1 st st' H HP.
+  inversion H; subst.
+  unfold hoare_triple in H1.
+  eapply H1.
+  - apply E_AssertTrue. assumption.
+  - assumption. 
 Qed.
 
 
@@ -422,8 +444,27 @@ Inductive cstep : (com * result)  -> (com * result) -> Prop :=
   | CS_While : forall st b c1,
           <{while b do c1 end}> / st 
       --> <{ if b then (c1; while b do c1 end) else skip end }> / st
+  | CS_AssertStep : forall st b b',
+      b / st -->b b' ->
+      <{ assert b }> / RNormal st --> <{ assert b' }> / RNormal st
+  | CS_AssertTrue : forall st,
+      <{ assert true }> / RNormal st --> <{ skip }> / RNormal st
+  | CS_AssertFalse : forall st,
+      <{ assert false }> / RNormal st --> <{ skip }> /  RError
+  | CS_AssumeStep : forall st b b',
+      b / st -->b b' ->
+      <{ assume b }> / RNormal st --> <{ assume b' }> / RNormal st
+  | CS_AssumeTrue : forall st,
+      <{ assume true }> / RNormal st --> <{ skip }> / RNormal st
+  | CS_NonDetChoice1 : forall st c1 c1' c2 st',
+      c1 / RNormal st --> c1' / RNormal st' ->
+      <{ c1 !! c2 }> / RNormal st --> <{ c1' !! c2 }> / RNormal st'
+  | CS_NonDetChoice2 : forall st c1 c2 c2' st',
+      c2 / st --> c2' / st' ->
+      <{ c1 !! c2 }> / st --> <{ c1 !! c2' }> / st'
+  | CS_NonDetChoiceDone : forall st,
+      <{ skip !! skip }> / st --> <{ skip }> / st
 
-  (* TODO *)
   
 
   where " t '/' st '-->' t' '/' st' " := (cstep (t,st) (t',st')).
@@ -650,9 +691,16 @@ Notation " d ; d' "
 Notation "{{ P }} d"
       := (Decorated P d)
       (in custom com at level 91, P constr) : dcom_scope.
+Notation "'assert' b  {{ Q }}"
+      := (DCAssert Q b) 
+      (in custom com at level 90, Q constr): dcom_scope.
+Notation "'assume' b  {{ Q }}"
+      := (DCAssume Q b) 
+      (in custom com at level 90, Q constr): dcom_scope.
+Notation "c1 '!!' c2 {{ Q }}"
+      := (DCNonDetChoice Q c1 c2) 
+      (in custom com at level 90, Q constr): dcom_scope.
 
-
-(* TODO: notation for the three new constructs *)
 
 Local Open Scope dcom_scope.
 
@@ -689,7 +737,9 @@ Fixpoint extract (d : dcom) : com :=
   | DCWhile b _ d _    => CWhile b (extract d)
   | DCPre _ d          => extract d
   | DCPost d _         => extract d
-  (* TODO *)
+  | DCAssert _ b       => CAssert b
+  | DCAssume _ b       => CAssume b
+  | DCNonDetChoice _ c1 c2 => CNonDetChoice (extract c1) (extract c2)
   end.
 
 Definition extract_dec (dec : decorated) : com :=
@@ -722,7 +772,9 @@ Fixpoint post (d : dcom) : Assertion :=
   | DCWhile _ _ _ Q         => Q
   | DCPre _ d               => post d
   | DCPost _ Q              => Q
-  (* TODO *)
+  | DCAssert Q _            => Q
+  | DCAssume Q _            => Q
+  | DCNonDetChoice Q _ _    => Q
   end.
 
 Definition post_dec (dec : decorated) : Assertion :=
@@ -890,7 +942,14 @@ Fixpoint verification_conditions (P : Assertion) (d : dcom) : Prop :=
   | DCPost d Q =>
       verification_conditions P d
       /\ (post d ->> Q)
-  (* TODO *)
+  | DCAssert Q b =>
+      (P ->> (Q /\ b))%assertion
+  | DCAssume Q b =>
+      (P ->> (b -> Q))%assertion
+  | DCNonDetChoice Q c1 c2 =>
+      (post c1 ->> Q) /\ (post c2 ->> Q)
+      /\ verification_conditions P c1
+      /\ verification_conditions P c2
   end.
 
 (** The key theorem states that [verification_conditions] does its job
