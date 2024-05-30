@@ -648,9 +648,12 @@ Inductive dcom : Type :=
   (* ->> {{ P }} d *)
 | DCPost (d : dcom) (Q : Assertion)
   (* d ->> {{ Q }} *)
-| DCAssert (* TODO *) 
-| DCAssume (* TODO *)
-| DCNonDetChoice (* TODO *)
+| DCAssert (Q : Assertion) (b : bexp)
+  (* {{Q /\ b}} assert (b) {{Q}} *) 
+| DCAssume (Q : Assertion) (b : bexp)
+  (* {{Q}} assume (b) {{Q /\ b}} *) 
+| DCNonDetChoice (Q : Assertion) (c1 : dcom) (c2 : dcom).
+  (* c1 !! c2 {{Q}} *)
 
 (** To provide the initial precondition that goes at the very top of a
     decorated program, we introduce a new type [decorated]: *)
