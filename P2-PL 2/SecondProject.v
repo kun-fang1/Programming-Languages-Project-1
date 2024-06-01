@@ -369,9 +369,13 @@ Qed.
 (* ================================================================= *)
 
 Theorem hoare_assert: forall P (b: bexp),
-  (*TODO: Hoare proof rule for [assert b] *)
+  {{P /\ b}} assert b {{P}}.
 Proof.
-  (* TODO *)
+  unfold hoare_triple.
+  intros P b st st' HE HP.
+  inversion HE. subst; destruct HP.
+  - eexists. split; try reflexivity. apply H.
+  - eexists. split.
 Qed.
 
 (* ================================================================= *)
@@ -379,9 +383,14 @@ Qed.
 (* ================================================================= *)
 
 Theorem hoare_assume: forall (P:Assertion) (b:bexp),
-  (*TODO: Hoare proof rule for [assume b] *)
+  {{b -> P}} assume b {{P}}.
 Proof.
-  (* TODO *)
+  unfold hoare_triple.
+  intros P b st st' HE HP.
+  inversion HE.
+  eexists. split. 
+  - reflexivity.
+  - apply HP. apply H0.
 Qed.
 
 
@@ -390,9 +399,18 @@ Qed.
 (* ================================================================= *)
 
 Theorem hoare_choice' : forall P c1 c2 Q,
-  (*TODO: Hoare proof rule for [c1 !! c2] *)
+  {{P}} c1 {{Q}} ->
+  {{P}} c2 {{Q}} ->
+  {{P}} c1 !! c2 {{Q}}.
 Proof.
-  (* TODO *)
+  intros P c1 c2 Q H1 H2 st st' H12 Pre.
+  inversion H12; subst.
+  - eapply H1.
+    + apply H5.
+    + apply Pre.
+  - eapply H2.
+    + apply H5.
+    + apply Pre.
 Qed.
 
 
@@ -407,7 +425,19 @@ Example hoare_choice_example:
   X := X + 1 !! X := X + 2
   {{ X = 2 \/ X = 3 }}.
 Proof.
-  ( * TODO *)
+  eapply hoare_choice'.
+  - eapply hoare_consequence_pre.
+    + eapply hoare_asgn.
+    + unfold "->>", assn_sub, t_update.
+      intros st H. simpl. simpl in H. 
+      rewrite -> H. simpl.
+      left. reflexivity.
+  - eapply hoare_consequence_pre.
+    + eapply hoare_asgn.
+    + unfold "->>", assn_sub, t_update.
+      intros st H. simpl. simpl in H. 
+      rewrite -> H. simpl.
+      right. reflexivity.
 Qed.
 
 
@@ -526,7 +556,37 @@ Example prog1_example1:
        prog1 / RNormal (X !-> 1) -->* <{ skip }> / RNormal st'
     /\ st' X = 2.
 Proof.
-  (* TODO *)
+  eexists. split.
+  unfold prog1.
+
+  eapply multi_step. apply CS_SeqStep. 
+  apply CS_AssumeStep. apply BS_Eq1. apply AS_Id.
+  eapply multi_step. apply CS_SeqStep.
+  apply CS_AssumeStep. apply BS_Eq.
+  simpl. eapply multi_step. apply CS_SeqStep.
+  apply CS_AssumeTrue.
+  eapply multi_step. 
+  apply CS_SeqFinish.
+
+  eapply multi_step. apply CS_SeqStep.
+  apply CS_NonDetChoice1.
+  eapply multi_step. apply CS_SeqStep.
+  apply CS_AssStep. apply AS_Plus1. apply AS_Id.
+  eapply multi_step. apply CS_SeqStep.
+  apply CS_AssStep. apply AS_Plus.
+  simpl. eapply multi_step. apply CS_SeqStep.
+  apply CS_Asgn.
+  eapply multi_step. apply CS_SeqFinish.
+
+  eapply multi_step.
+  apply CS_AssertStep. apply BS_Eq1. apply AS_Id.
+  eapply multi_step. 
+  apply CS_AssertStep. apply BS_Eq.
+  simpl. eapply multi_step.
+  apply CS_AssertTrue.
+  eapply multi_refl.
+
+  reflexivity.
 Qed.
 
 
@@ -538,7 +598,18 @@ Lemma one_step_aeval_a: forall st a a',
   a / st -->a a' ->
   aeval st a = aeval st a'.
 Proof.
-  (* TODO (Hint: you can prove this by induction on a) *)
+  intros st a a' H.
+  induction H.
+  - reflexivity.
+  - simpl. rewrite <- IHastep. reflexivity.
+  - simpl. rewrite <- IHastep. reflexivity.
+  - reflexivity.
+  - simpl. rewrite <- IHastep. reflexivity.
+  - simpl. rewrite <- IHastep. reflexivity.
+  - reflexivity.
+  - simpl. rewrite <- IHastep. reflexivity.
+  - simpl. rewrite <- IHastep. reflexivity.
+  - reflexivity.
 Qed.
 
 
@@ -999,7 +1070,21 @@ Proof.
   - (* Post *)
     destruct H as [Hd HQ].
     eapply hoare_consequence_post; eauto.
-  (* TODO *)
+  - (* Assert *)  
+    eapply hoare_consequence_pre. 
+    + apply hoare_assert.
+    + simpl. assumption. 
+  - (* Assume *)
+    eapply hoare_consequence_pre.
+    + apply hoare_assume.
+    + simpl. assumption. 
+  - (* NonDetChoice *)
+    destruct H as [H1 [H2 [Hd1 Hd2]]].
+    apply IHd1 in Hd1.  
+    apply IHd2 in Hd2.
+    apply hoare_choice'.
+      + eapply hoare_consequence; eauto.
+      + eapply hoare_consequence; eauto.
 Qed.
 
 
@@ -1205,23 +1290,24 @@ Proof. verify. Qed.
 (* TODO: fill in the assertions *)
 Definition sqrt_dec (m:nat) : decorated :=
   <{
-    {{ FILL_IN_HERE }} ->>
-    {{ FILL_IN_HERE }}
+    {{ X = m }} ->>
+    {{ X = m /\ 0 * 0 <= m }}
       Z := 0
-                    {{ FILL_IN_HERE }};
+                    {{ X = m /\ Z*Z <= m }};
       while ((Z+1)*(Z+1) <= X) do
-                    {{ FILL_IN_HERE  }} ->>
-                    {{ FILL_IN_HERE }}
+                    {{ X = m /\ Z*Z <= m /\ (Z+1)*(Z+1) <= X}} ->>
+                    {{ X = m /\ (Z+1)*(Z+1) <= m }}
         Z := Z + 1
-                    {{ FILL_IN_HERE }}
+                    {{ X = m /\ Z*Z <= m }}
       end
-    {{ FILL_IN_HERE }} ->>
-    {{ FILL_IN_HERE }}
+    {{ X = m /\ Z*Z<=m /\ (Z+1)*(Z+1) > X }} ->>
+    {{ Z*Z<=m /\ m < (Z+1)*(Z+1) }}
   }>.
 
 Theorem sqrt_correct : forall m,
   outer_triple_valid (sqrt_dec m).
-Proof. (* TODO *) Admitted.
+Proof. intro m. verify. Qed.
+
 
 
 
@@ -1288,19 +1374,36 @@ Definition parity_dec_nondet (m:nat) : decorated :=
 should not be changed. Note that the code below does
 not typecheck until you decorate it correctly. *)
 <{
-  {{ X = m }}
+  {{ X = m }} ->>
+  {{ ap parity X = parity m }}
     while 2 <= X do
+      {{ ap parity X = parity m /\ 2 <= X}}
+      ->> {{ ap parity (X-2) = parity m}}
       X := X - 2
+      {{ ap parity X = parity m}}
       !! 
+      ->> {{ ap parity (X+2) = parity m}}
       X := X + 2
+      {{ ap parity X = parity m}}
+
+      {{ ap parity X = parity m}}
     end
+   {{ ap parity X = parity m /\ 2 > X}} ->>
   {{ X = parity m }} }>.
+
 
 
 Theorem parity_outer_triple_valid_nondet : forall m,
   outer_triple_valid (parity_dec_nondet m).
 Proof. 
-  (* TODO *)
+  verify.
+  - destruct (st X); try lia.
+    destruct n; try lia.
+  - destruct (st X); try lia.
+    destruct n; try lia.
+  - rewrite parity_ge_2; try lia.
+  - rewrite parity_plus_2. assumption.
+  - rewrite parity_lt_2 in H; try lia. 
 Qed.
 
 
